@@ -1,0 +1,63 @@
+#Final Project R Code - Student Performance
+#Load data 
+library("openxlsx")
+setwd("C:/Users/ISABE/OneDrive/Desktop/Stats/")
+Final<-read.xlsx("Student_Performance.xlsx", sheet="Student_Performance", check.names=TRUE)
+
+#Normalize data so that variables can be compared to each other
+Final$HStudy<-scale(Final$Hours.Studied)
+Final$PrevScore<-scale(Final$Previous.Scores)
+Final$HSleep<-scale(Final$Sleep.Hours)
+Final$NumPaperPrac<-scale(Final$Sample.Question.Papers.Practiced)
+Final$PI<-scale(Final$Performance.Index)
+
+#Convert categorical variable (Extracurricular activities) to a dummy variable
+Final$exa_contrast <- ifelse(Final$Extracurricular.Activities=='Yes', 1, 0) 
+
+#Save normalized data as new file
+write.csv(Final,"/Users/ISABE/OneDrive/Desktop/Stats/NormalizedData.csv", row.names = FALSE)
+
+#Create full model with all parameters and no interactions
+full <-lm(data=Final, PI~HStudy+PrevScore+exa_contrast+HSleep+NumPaperPrac)
+summary(full)
+
+#Assess assumptions for full model
+#Added variable plots to assess linearity
+library(car)
+avPlots(full)
+#All plots look linear so no problems with non linear relationships
+
+#Influence plot and cooks distance to check for influential points
+influencePlot(full)
+cooks.distance(full)
+#No x outliers but some Y outliers (outside of -2,2 range) 
+#Compare cooks distance to F(6, 9994) for 50%
+qf(0.50, 6, 9994)
+#No cooks distance above threshold of F(6,9994), so no major influential points
+
+#Check for multicollinearity using VIF
+vif(full)
+#No VIF greater than 10 so no multicollinearity issues
+
+#Qq plot to check for normality
+qqnorm(resid(full))
+#QQ plot appears normal
+
+#K-fold cross validation
+library(MASS)
+library(leaps)
+library(caret)
+set.seed(123)
+train.control <-trainControl(method="cv",number=10)
+full.k<-train(PI~HStudy+PrevScore+exa_contrast+HSleep+NumPaperPrac, data=Final, method="leapBackward", 
+              tuneGrid=data.frame(nvmax=5),
+              trControl=train.control)
+full.k$results
+
+#Research question 1: 
+
+
+
+
+
+

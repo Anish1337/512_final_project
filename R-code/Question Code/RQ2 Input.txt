@@ -1,0 +1,90 @@
+#Load data
+library("openxlsx")
+setwd("C:/Users/ISABE/OneDrive/Desktop/Stats/")
+Final<-read.xlsx("Student_Performance.xlsx", sheet="Student_Performance", check.names=TRUE)
+
+#Normalize variables
+Final$HStudy<-scale(Final$Hours.Studied)
+Final$PrevScore<-scale(Final$Previous.Scores)
+Final$HSleep<-scale(Final$Sleep.Hours)
+Final$NumPaperPrac<-scale(Final$Sample.Question.Papers.Practiced)
+Final$PI<-scale(Final$Performance.Index)
+
+#Convert categorical to dummy variables
+Final$Extracurricular.Activities <- as.factor(ifelse(Final$Extracurricular.Activities=="Yes", "Y", "N")) 
+Final$exa_contrast <- ifelse(Final$Extracurricular.Activities=='Y', 1, 0) 
+write.csv(Final,"/Users/ISABE/OneDrive/Desktop/Stats/NormalizedData.csv", row.names = FALSE)
+
+#Create full model
+full <-lm(data=Final, PI~HStudy+PrevScore+exa_contrast+HSleep+NumPaperPrac)
+summary(full)
+
+#ANOVA for full
+anova(full)
+
+#Added Variable plots for full
+library(car)
+avPlots(full)
+
+#Outliers for full
+influencePlot(full)
+cooks.distance(full)
+#No x outliers but some Y outliers (outside of -2,2 range) 
+#No Cook's D above 0.5 so no influence on model
+
+#Multicolinearity for full
+vif(full)
+#No VIF greater than 10 so no multicolinearity issues
+
+#Qq plot
+qqnorm(resid(full))
+
+#K-fold cross validation
+library(MASS)
+library(leaps)
+library(caret)
+set.seed(123)
+train.control <-trainControl(method="cv",number=10)
+model1<-train(PI~HStudy+PrevScore+exa_contrast+HSleep+NumPaperPrac, data=Final, method="leapBackward", 
+              tuneGrid=data.frame(nvmax=5),
+              trControl=train.control)
+model1$results
+
+#Reduced model for research question 2
+Reduced <-lm(PI~I(HStudy+PrevScore)+exa_contrast+HSleep+NumPaperPrac, data=Final)
+summary(Reduced)
+
+#Added Variable plots for reduced
+library(car)
+avPlots(Reduced)
+
+#Outliers for reduced
+influencePlot(Reduced)
+#No x outliers but some Y outliers (outside of -2,2 range) 
+#No Cook's D above 0.5 so no influence on model
+
+#Multicolinearity for reduced
+vif(Reduced)
+#No VIF greater than 10 so no multicolinearity issues
+
+#Qq plot
+qqnorm(resid(Reduced))
+
+#BP test
+library(lmtest)
+bptest(Reduced)
+ 
+
+#K-fold cross validation for reduced
+library(MASS)
+library(leaps)
+library(caret)
+set.seed(123)
+train.control <-trainControl(method="cv",number=10)
+model2<-train(PI~I(HStudy+PrevScore)+exa_contrast+HSleep+NumPaperPrac, data=Final, method="leapBackward", 
+              tuneGrid=data.frame(nvmax=5),
+              trControl=train.control)
+model2$results
+
+#Compare models
+anova(Reduced, full)
